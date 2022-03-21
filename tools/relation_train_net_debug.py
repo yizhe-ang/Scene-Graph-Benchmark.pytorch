@@ -42,20 +42,14 @@ except ImportError:
 
 def train(cfg, local_rank, distributed, logger):
     debug_print(logger, "prepare training")
-    # FIXME How does the model work?
-    model = build_detection_model(cfg)
-    debug_print(logger, "end model construction")
+    # model = build_detection_model(cfg)
+    # debug_print(logger, 'end model construction')
 
     # modules that should be always set in eval mode
     # their eval() method should be called after model.train() is called
-    eval_modules = (
-        model.rpn,
-        model.backbone,
-        model.roi_heads.box,
-    )
+    # eval_modules = (model.rpn, model.backbone, model.roi_heads.box,)
 
-    # Freeze params, i.e. for the detection model
-    fix_eval_modules(eval_modules)
+    # fix_eval_modules(eval_modules)
 
     # NOTE, we slow down the LR of the layers start with the names in slow_heads
     if cfg.MODEL.ROI_RELATION_HEAD.PREDICTOR == "IMPPredictor":
@@ -80,67 +74,44 @@ def train(cfg, local_rank, distributed, logger):
             "roi_heads.relation.union_feature_extractor.att_feature_extractor"
         ] = "roi_heads.attribute.feature_extractor"
 
-    device = torch.device(cfg.MODEL.DEVICE)
-    model.to(device)
+    # device = torch.device(cfg.MODEL.DEVICE)
+    # model.to(device)
 
-    # Configure optimization
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     num_batch = cfg.SOLVER.IMS_PER_BATCH
-    optimizer = make_optimizer(
-        cfg,
-        model,
-        logger,
-        slow_heads=slow_heads,
-        slow_ratio=10.0,
-        rl_factor=float(num_batch),
-    )
-    scheduler = make_lr_scheduler(cfg, optimizer, logger)
+    # optimizer = make_optimizer(cfg, model, logger, slow_heads=slow_heads, slow_ratio=10.0, rl_factor=float(num_batch))
+    # scheduler = make_lr_scheduler(cfg, optimizer, logger)
     debug_print(logger, "end optimizer and shcedule")
     # Initialize mixed-precision training
     use_mixed_precision = cfg.DTYPE == "float16"
     amp_opt_level = "O1" if use_mixed_precision else "O0"
-    model, optimizer = amp.initialize(model, optimizer, opt_level=amp_opt_level)
+    # model, optimizer = amp.initialize(model, optimizer, opt_level=amp_opt_level)
 
-    if distributed:
-        model = torch.nn.parallel.DistributedDataParallel(
-            model,
-            device_ids=[local_rank],
-            output_device=local_rank,
-            # this should be removed if we update BatchNorm stats
-            broadcast_buffers=False,
-            find_unused_parameters=True,
-        )
+    # if distributed:
+    #     model = torch.nn.parallel.DistributedDataParallel(
+    #         model, device_ids=[local_rank], output_device=local_rank,
+    #         # this should be removed if we update BatchNorm stats
+    #         broadcast_buffers=False,
+    #         find_unused_parameters=True,
+    #     )
     debug_print(logger, "end distributed")
     arguments = {}
     arguments["iteration"] = 0
 
     output_dir = cfg.OUTPUT_DIR
 
-    # Init checkpointer
     save_to_disk = get_rank() == 0
-    checkpointer = DetectronCheckpointer(
-        cfg,
-        model,
-        optimizer,
-        scheduler,
-        output_dir,
-        save_to_disk,
-        custom_scheduler=True,
-    )
+    # checkpointer = DetectronCheckpointer(
+    #     cfg, model, optimizer, scheduler, output_dir, save_to_disk, custom_scheduler=True
+    # )
     # if there is certain checkpoint in output_dir, load it, else load pretrained detector
-    if checkpointer.has_checkpoint():
-        extra_checkpoint_data = checkpointer.load(
-            cfg.MODEL.PRETRAINED_DETECTOR_CKPT,
-            update_schedule=cfg.SOLVER.UPDATE_SCHEDULE_DURING_LOAD,
-        )
-        arguments.update(extra_checkpoint_data)
-    else:
-        # load_mapping is only used when we init current model from detection model.
-        checkpointer.load(
-            cfg.MODEL.PRETRAINED_DETECTOR_CKPT,
-            with_optim=False,
-            load_mapping=load_mapping,
-        )
+    # if checkpointer.has_checkpoint():
+    #     extra_checkpoint_data = checkpointer.load(cfg.MODEL.PRETRAINED_DETECTOR_CKPT,
+    #                                    update_schedule=cfg.SOLVER.UPDATE_SCHEDULE_DURING_LOAD)
+    #     arguments.update(extra_checkpoint_data)
+    # else:
+    #     # load_mapping is only used when we init current model from detection model.
+    #     checkpointer.load(cfg.MODEL.PRETRAINED_DETECTOR_CKPT, with_optim=False, load_mapping=load_mapping)
     debug_print(logger, "end load checkpointer")
 
     # NOTE Dataloaders here
@@ -158,9 +129,9 @@ def train(cfg, local_rank, distributed, logger):
     debug_print(logger, "end dataloader")
     checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
 
-    if cfg.SOLVER.PRE_VAL:
-        logger.info("Validate before training")
-        run_val(cfg, model, val_data_loaders, distributed, logger)
+    # if cfg.SOLVER.PRE_VAL:
+    #     logger.info("Validate before training")
+    #     run_val(cfg, model, val_data_loaders, distributed, logger)
 
     logger.info("Start training")
     meters = MetricLogger(delimiter="  ")
@@ -172,17 +143,11 @@ def train(cfg, local_rank, distributed, logger):
     print_first_grad = True
     # NOTE Training loop here
     for iteration, (images, targets, _) in enumerate(train_data_loader, start_iter):
-        """May be different depending on model?
+        print(images)
+        print(targets)
+        print(targets[0].extra_fields)
 
-        images: ImageList
-        targets: Tuple[BoxList]
-            - labels: (N_b,)
-            - attributes: (N_b, 10)
-                Simply a list of attribute ids? (max 10 attributes for each object)
-            - relation: (N_b, N_b)
-                Relationship matrix, with [i, j] containing the rel id of obj i with obj j
-                How to deal with multiple rels?
-        """
+        return
 
         if any(len(target) < 1 for target in targets):
             logger.error(
@@ -193,7 +158,6 @@ def train(cfg, local_rank, distributed, logger):
         arguments["iteration"] = iteration
 
         model.train()
-        # Freeze detection modue params
         fix_eval_modules(eval_modules)
 
         images = images.to(device)
@@ -438,8 +402,8 @@ def main():
 
     model = train(cfg, args.local_rank, args.distributed, logger)
 
-    if not args.skip_test:
-        run_test(cfg, model, args.distributed, logger)
+    # if not args.skip_test:
+    #     run_test(cfg, model, args.distributed, logger)
 
 
 if __name__ == "__main__":

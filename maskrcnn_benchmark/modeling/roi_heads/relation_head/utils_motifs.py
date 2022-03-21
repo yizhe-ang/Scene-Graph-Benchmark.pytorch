@@ -37,7 +37,7 @@ def generate_attributes_target(attributes, device, max_num_attri, num_attri_cat)
 
 def transpose_packed_sequence_inds(lengths):
     """
-    Get a TxB indices from sorted lengths. 
+    Get a TxB indices from sorted lengths.
     Fetch new_inds, split by new_lens, padding to max(new_lens), and stack.
     Returns:
         new_inds (np.array) [sum(lengths), ]
@@ -82,7 +82,7 @@ def sort_by_score(proposals, scores):
     inds, ls_transposed = transpose_packed_sequence_inds(num_rois)  # move it to TxB form
     inds = torch.LongTensor(inds).to(scores[0].device)
     ls_transposed = torch.LongTensor(ls_transposed)
-    
+
     perm = perm[inds] # (batch_num_box, )
     _, inv_perm = torch.sort(perm)
 
@@ -93,11 +93,11 @@ def to_onehot(vec, num_classes, fill=1000):
     """
     Creates a [size, num_classes] torch FloatTensor where
     one_hot[i, vec[i]] = fill
-    
+
     :param vec: 1d torch tensor
     :param num_classes: int
     :param fill: value that we want + and - things to be.
-    :return: 
+    :return:
     """
     onehot_result = vec.new(vec.size(0), num_classes).float().fill_(-fill)
     arange_inds = vec.new(vec.size(0)).long()
@@ -122,10 +122,10 @@ def center_x(proposals):
     boxes = cat([p.bbox for p in proposals], dim=0)
     c_x = 0.5 * (boxes[:, 0] + boxes[:, 2])
     return c_x.view(-1)
-    
+
 def encode_box_info(proposals):
     """
-    encode proposed box information (x1, y1, x2, y2) to 
+    encode proposed box information (x1, y1, x2, y2) to
     (cx/wid, cy/hei, w/wid, h/hei, x1/wid, y1/hei, x2/wid, y2/hei, wh/wid*hei)
     """
     assert proposals[0].mode == 'xyxy'
@@ -170,6 +170,9 @@ def obj_edge_vectors(names, wv_dir, wv_type='glove.6B', wv_dim=300):
 
     return vectors
 
+# FIXME Error when loading word vectors:
+# urllib.error.HTTPError: HTTP Error 503: Service Temporarily Unavailable
+# Have to download manually
 def load_word_vectors(root, wv_type, dim):
     """Load word vectors from a path, trying .pt, .txt, and .zip extensions."""
     URL = {

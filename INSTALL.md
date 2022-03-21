@@ -3,7 +3,7 @@
 Most of the requirements of this projects are exactly the same as [maskrcnn-benchmark](https://github.com/facebookresearch/maskrcnn-benchmark). If you have any problem of your environment, you should check their [issues page](https://github.com/facebookresearch/maskrcnn-benchmark/issues) first. Hope you will find the answer.
 
 ### Requirements:
-- PyTorch >= 1.2 (Mine 1.4.0 (CUDA 10.1))
+- PyTorch >= 1.2 (Mine 1.4.0 (CUDA 10.1))  # 1.8.1
 - torchvision >= 0.4 (Mine 0.5.0 (CUDA 10.1))
 - cocoapi
 - yacs
@@ -41,6 +41,9 @@ cd $INSTALL_DIR
 git clone https://github.com/cocodataset/cocoapi.git
 cd cocoapi/PythonAPI
 python setup.py build_ext install
+
+# To install GCC 5
+conda install -c psi4 gcc-5
 
 # install apex
 cd $INSTALL_DIR
